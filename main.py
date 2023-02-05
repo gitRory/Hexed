@@ -1,10 +1,8 @@
 import arcade
-import screeninfo
-import board
 import gameinstance
   
 def main():
-    window = arcade.MyGame(gameinstance.local_packet_sprite_lists)
+    window = gameinstance.MyGame(gameinstance.local_packet_sprite_lists)
     window.setup()
     arcade.run()
 
