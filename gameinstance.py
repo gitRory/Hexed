@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field, asdict
 import arcade
 import screeninfo
+import board
 
 
 local_packet_sprite_lists= {'trail_particles_sprite_list':None,'packet_sprite_list':None, 'node_sprite_list': None}
@@ -36,8 +37,8 @@ class MyGame(arcade.Window):
         self.set_mouse_visible(False)
         self.background_color=arcade.color.BLACK
         
-        self.node_sprite_list=BoardObjectCluster(
-                object_sprite=BoardObject(node_png),
+        self.node_sprite_list=board.BoardObjectCluster(
+                object_sprite=board.BoardObject(node_png),
                 cluster_size_of_x=10,cluster_size_of_y=10)
         self.node_sprite_list.make_hex_pattern()
 
