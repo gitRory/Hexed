@@ -2,7 +2,7 @@ import arcade
 import gameinstance
   
 def main():
-    window = gameinstance.MyGame(gameinstance.local_packet_sprite_lists)
+    window = gameinstance.MyGame()
     window.setup()
     arcade.run()
 
