@@ -1,14 +1,12 @@
-
-
+import copy
 #######data####
 #!migrate to JSON
-
-YHEXOFFSET= 0.8660 #np.sqrt(3) / 2 apporxi
 
 ############333
 import arcade as ar
 import random
 import numpy as np
+import PIL
 
 #?import pymunk use this with arcade.PyMunk maybe
 #***************************************************
@@ -16,7 +14,7 @@ class BoardObject(ar.AnimatedTimeBasedSprite):
     """if interacts on the board, it's one of these."""
     def __init__(
         self,
-        texture_paths: dict,
+        texture_paths: list,
         scale: float = 1,
         image_x: float = 0,
         image_y: float = 0,
@@ -24,11 +22,11 @@ class BoardObject(ar.AnimatedTimeBasedSprite):
         image_height: float = 0,
         center_x: float = 0,
         center_y: float = 0,
-        health: float= 50,
-                
-        ):
+        family: str = None,
+        health: float = 60,
+    ):
         super().__init__(
-            filename=texture_paths[0],
+            filename=texture_paths[0]['path'],
             scale=scale,
             image_x=image_x,
             image_y=image_y,
@@ -36,44 +34,69 @@ class BoardObject(ar.AnimatedTimeBasedSprite):
             image_height=image_height,
             center_x=center_x,
             center_y=center_y,
-            
         )
-        self.health= health
-        self.texture_paths= texture_paths
+        self.family = family
+        self.health = health
+        self.frames= self.rigged(texture_paths)
+
+    @classmethod       
+    def rigged(cls, texture_paths):
+        frames = []
+        for texture in texture_paths:
+            frames.append(ar.AnimationKeyframe(
+                tile_id=texture['name'],
+                duration=30,
+                texture=ar.texture.load_texture(
+                    texture['path']
+                    )
+                )
+            )
+        return frames  
+
+
 #***************************************************
 
 class BoardObjectCluster(ar.SpriteList):
     def __init__(
         self,
+        object_sprite: BoardObject,
+        cluster_size_of_x: int,
+        cluster_size_of_y: int,
         cluster_type:str= "undefined",
-        cluster_size_of_x: int =1,
-        cluster_size_of_y: int =1,
-        object_sprite: BoardObject= None,
         ):
         self.cluster_type = cluster_type
-        self.clustx=cluster_size_of_x
-        self.clusty=cluster_size_of_y
+        self.clustx=cluster_size_of_x 
+        self.clusty=cluster_size_of_y  
         self.cluster_size = cluster_size_of_x * cluster_size_of_y
         self.object_sprite = object_sprite
         super().__init__(capacity=self.cluster_size)
 
-
-    def create_cluster(self,board_object=BoardObject,cluster_size=int):
-        try:
-            cluster_type=board_object.packet_type
-        except ValueError:
-            print("oops")
-        else:
-            cluster_type=board_object.__name__
+    def create_cluster(board_object,cluster_size_of_x,cluster_size_of_y)-> object:
+        
+        cluster_type=board_object.family
         new_cluster=BoardObjectCluster(
-            cluster_type=cluster_type,
-            object_sprite=board_object,
-            cluster_size=cluster_size
-            )
-        for _ in range(cluster_size):
-            new_cluster.append(new_cluster.object_sprite)
-        return new_cluster
+        object_sprite=board_object,
+        cluster_type=cluster_type,
+        cluster_size_of_x=cluster_size_of_x,
+        cluster_size_of_y=cluster_size_of_y
+        )
+        
+        for index in range(new_cluster.cluster_size):
+            sprite=copy.deepcopy(board_object)
+            if cluster_type== 'node':
+                xpos=index%new_cluster.clustx
+                ypos=index//new_cluster.clusty
+                if ypos%2==0:
+                    sprite.center_x=xpos*board_object.health
+                else:                  
+                    sprite.center_x=(xpos*board_object.health)+board_object.health/2
+                sprite.center_y=ypos*board_object.health* 0.8660 #YHEXOFFSET=np.sqrt(3) / 2 apporxi
                 
+                if (ypos%2==0 and xpos%3==1) or (ypos%2!=0 and xpos%3==2):
+                     sprite.texture =  new_cluster.object_sprite.frames[1].texture
+            new_cluster.append(sprite)
+        return new_cluster
+        
     def update_packets(self,sprite_list=ar.SpriteList):
         for sprite in sprite_list[:]:
                     sprite_list.health -= 1
@@ -93,50 +116,7 @@ class BoardObjectCluster(ar.SpriteList):
             if self.object_sprite.has_trail:
                 self.update_packets(self.object_sprite.trail_sprites)
         else:
-            return super().update()
- 
-
-    def make_hex_pattern(self):
-        x, y = 0, 0
-        for i in range(self.clusty):
-            if i % 2 == 0:
-                x = self.object_sprite.health / 2
-            else:
-                x = 0
-            for _ in range(self.clustx):
-                self.object_sprite.center_x = x
-                self.object_sprite.center_y = y
-                for _ in range(len(self)):
-                    self.append(self.object_sprite.__class__(**{k: v for k, v in vars(self.object_sprite).items() if k != "_width"}))
-
-                x += self.object_sprite.health
-            y += self.object_sprite.health * YHEXOFFSET
-
-    # def make_hex_pattern(self):
-    #     nodes=BoardObjectCluster()
-    #     x,y,yobj,xobj=0,0,0,0
-    #     for _ in range(self.clusty*self.clustx):
-    #         nodes.append(copy.deepcopy(self.object_sprite))
-    #     for index,sprite in enumerate(nodes):
-    #         if xobj== self.clustx-1:
-    #             yobj+=1
-    #         xobj=index%self.clustx
-    #         if xobj==0:
-    #             if yobj % 2 == 0:
-    #                 x= (self.object_sprite.health / 2)
-    #             else:
-    #                 x = 0
-    #         if ((xobj % 2 == 0 and yobj % 3 == 1) or
-    #         (xobj % 2 != 0 and yobj % 3 == 2)):
-    #             sprite.texture = \
-    #                 ar.load_texture(self.object_sprite.texture_paths[1])
-    #         sprite.center_x=x
-    #         sprite.center_y=y
-    #         y+= self.object_sprite.health * YHEXOFFSET
-    #         x+= self.object_sprite.health
-    #     return nodes
-
-
+            super().update()
 
 #***************************************************
 #! remove nodes based on trigger
@@ -155,7 +135,8 @@ class Packet(BoardObject):
         health: float= 60,
         emission_rate: int= 1,
         trail_sprites: BoardObjectCluster=None,
-        packet_type: str = None
+        packet_type: str = None,
+        emit_type: str= None,
                 
         ):
         super().__init__(
@@ -169,6 +150,7 @@ class Packet(BoardObject):
             center_y=center_y,
             health= health,
             texture_paths= texture_paths,
+            packet_type=packet_type,
         )
         self.speed=speed 
         self.history:list=[] #spritelist
@@ -178,8 +160,8 @@ class Packet(BoardObject):
         self.trail_interval = self.speed*2 
         self.trail_sprites = trail_sprites #spritelist
         self.has_trail=False
-        self.packet_types={0: "undefined",1:"plain",2:"bloom",3:"hunter",4:"detour"}
-        self.packet_type =packet_type or self.packet_types[0]
+        self.emit_types={0: "undefined",1:"plain",2:"bloom",3:"hunter",4:"detour"}
+        self.emit_type =emit_type or self.packet_types[0]
 
     def rando_vector(speed=None,angle=None):
         if speed is not None:
